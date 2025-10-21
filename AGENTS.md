@@ -42,40 +42,6 @@ if not STRIPE_API_KEY:
 * Agents must **read only**; they cannot write `.env` or export secrets dynamically.
 * All secrets should be scoped per environment (`dev`, `staging`, `prod`) via OS vars.
 
----
-
-### Agent Control & Safety
-
-1. **Bounded Scope**
-
-   * Agents operate only within their registered Django apps or service modules.
-   * Use explicit allow-lists for filesystem and network access.
-
-2. **Execution Contracts**
-
-   * All agent entrypoints require:
-
-     * a clear task name (`task_name`),
-     * a human readable `summary`,
-     * and an optional `dry_run` flag defaulting to `True`.
-   * Agents must log all output and decisions to `/logs/agents/<date>.log`.
-
-3. **Rate & Cost Controls**
-
-   * Respect `MAX_TOKENS_PER_MINUTE`, `MAX_CALLS_PER_HOUR`, etc. via environment vars.
-   * Long-running jobs use Celery queues with back-pressure enabled.
-
-4. **Mutation Guard**
-
-   * No agent can write to the database or push to git without a checksum diff and explicit approval signal.
-   * All destructive actions (`delete`, `drop`, `overwrite`) must require a `--force` flag or `confirm=True`.
-
-5. **Observability**
-
-   * Standardize structured logs (JSON or line-delimited text).
-   * Include: timestamp, agent name, task, duration, and status.
-
----
 
 ### Agent Design Style 
 
