@@ -1,0 +1,9 @@
+<div>
+    <p><strong>You:</strong> {{ request.POST.prompt }}</p>
+    <p><strong>AI:</strong> Here is the plan:</p>
+    <ul>
+        {% for op in plan.operations %}
+        <li>{{ op.op }}: {{ op.name }}</li>
+        {% endfor %}
+    </ul>
+</div>
