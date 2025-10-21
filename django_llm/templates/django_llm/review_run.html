@@ -1,0 +1,20 @@
+{% extends "admin/base_site.html" %}
+{% block extrastyle %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
+{% endblock %}
+{% block content %}
+<h1>Review Run #{{ run.id }}</h1>
+<p><strong>Prompt:</strong> {{ run.prompt }}</p>
+<hr>
+{% for task in run.task_set.all %}
+    <h2>Task #{{ task.id }}: {{ task.op }}</h2>
+    <pre><code class="language-diff">{{ task.diff }}</code></pre>
+    <hr>
+{% endfor %}
+<button hx-post="{% url 'django_llm:apply_run' run.id %}" hx-target="#run-{{ run.id }}-status" hx-swap="innerHTML">Apply</button>
+<div id="run-{{ run.id }}-status"></div>
+{% endblock %}
+{% block extrahead %}
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+{% endblock %}

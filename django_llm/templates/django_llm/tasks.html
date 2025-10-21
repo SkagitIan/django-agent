@@ -1,0 +1,26 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Task List</h1>
+
+<h2>User Initiated</h2>
+<ul>
+    {% for run in user_runs %}
+    <li>
+        <p><strong>Run #{{ run.id }}</strong> - {{ run.prompt }}</p>
+        <div id="run-{{ run.id }}-status">{{ run.state }}</div>
+        <a href="{% url 'django_llm:review_run' run.id %}">Review</a>
+    </li>
+    {% endfor %}
+</ul>
+
+<h2>AI Suggested</h2>
+<ul>
+    {% for run in ai_runs %}
+    <li>
+        <p><strong>Run #{{ run.id }}</strong> - {{ run.prompt }}</p>
+        <div id="run-{{ run.id }}-status">{{ run.state }}</div>
+        <a href="{% url 'django_llm:review_run' run.id %}">Review</a>
+    </li>
+    {% endfor %}
+</ul>
+{% endblock %}

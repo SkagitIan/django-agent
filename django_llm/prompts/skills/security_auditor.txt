@@ -1,0 +1,3 @@
+Summarize any high-severity security issues from the following Bandit report.
+
+{report}

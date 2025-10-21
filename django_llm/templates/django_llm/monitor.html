@@ -1,0 +1,24 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<h1>Monitor</h1>
+<table>
+    <thead>
+        <tr>
+            <th>Timestamp</th>
+            <th>Source</th>
+            <th>Level</th>
+            <th>Message</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log.timestamp }}</td>
+            <td>{{ log.source }}</td>
+            <td>{{ log.level }}</td>
+            <td>{{ log.message }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

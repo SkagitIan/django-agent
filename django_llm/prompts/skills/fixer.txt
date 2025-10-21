@@ -1,0 +1,3 @@
+Here's a Django stacktrace. Suggest a fix as a series of codemod operations.
+
+{stacktrace}
