@@ -29,6 +29,46 @@ class AddModelCommand(VisitorBasedCodemodCommand):
         )
         return updated_node.with_changes(body=[*updated_node.body, model_class])
 
+class AddModelFormCommand(VisitorBasedCodemodCommand):
+    def __init__(self, context: CodemodContext, model_name: str):
+        super().__init__(context)
+        self.model_name = model_name
+
+    def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
+        form_class = cst.ClassDef(
+            name=cst.Name(f"{self.model_name}Form"),
+            bases=[cst.Arg(value=cst.parse_expression("forms.ModelForm"))],
+            body=cst.IndentedBlock(
+                body=[
+                    cst.ClassDef(
+                        name=cst.Name("Meta"),
+                        bases=[],
+                        body=cst.IndentedBlock(
+                            body=[
+                                cst.SimpleStatementLine(
+                                    body=[
+                                        cst.Assign(
+                                            targets=[cst.AssignTarget(target=cst.Name("model"))],
+                                            value=cst.Name(self.model_name),
+                                        )
+                                    ]
+                                ),
+                                cst.SimpleStatementLine(
+                                    body=[
+                                        cst.Assign(
+                                            targets=[cst.AssignTarget(target=cst.Name("fields"))],
+                                            value=cst.SimpleString("'__all__'"),
+                                        )
+                                    ]
+                                )
+                            ]
+                        )
+                    )
+                ]
+            )
+        )
+        return updated_node.with_changes(body=[*updated_node.body, form_class])
+
 class RegisterModelAdminCommand(VisitorBasedCodemodCommand):
     def __init__(self, context: CodemodContext, model_name: str):
         super().__init__(context)
@@ -42,27 +82,54 @@ class RegisterModelAdminCommand(VisitorBasedCodemodCommand):
 
 
 class AddViewCommand(VisitorBasedCodemodCommand):
-    def __init__(self, context: CodemodContext, view_name: str):
+    def __init__(self, context: CodemodContext, view_name: str, view_type: str, model: str, form_class: str = None, success_url: str = None):
         super().__init__(context)
         self.view_name = view_name
+        self.view_type = view_type
+        self.model = model
+        self.form_class = form_class
+        self.success_url = success_url
 
     def leave_Module(self, original_node: cst.Module, updated_node: cst.Module) -> cst.Module:
-        view_func = cst.FunctionDef(
-            name=cst.Name(self.view_name),
-            params=cst.Parameters(params=[cst.Param(name=cst.Name("request"))]),
-            body=cst.IndentedBlock(
+        body = [
+            cst.SimpleStatementLine(
                 body=[
-                    cst.SimpleStatementLine(
-                        body=[
-                            cst.Return(
-                                value=cst.parse_expression("HttpResponse('Hello, world!')")
-                            )
-                        ]
+                    cst.Assign(
+                        targets=[cst.AssignTarget(target=cst.Name("model"))],
+                        value=cst.Name(self.model),
                     )
                 ]
-            ),
+            )
+        ]
+        if self.form_class:
+            body.append(
+                cst.SimpleStatementLine(
+                    body=[
+                        cst.Assign(
+                            targets=[cst.AssignTarget(target=cst.Name("form_class"))],
+                            value=cst.Name(self.form_class),
+                        )
+                    ]
+                )
+            )
+        if self.success_url:
+            body.append(
+                cst.SimpleStatementLine(
+                    body=[
+                        cst.Assign(
+                            targets=[cst.AssignTarget(target=cst.Name("success_url"))],
+                            value=cst.SimpleString(f"'{self.success_url}'"),
+                        )
+                    ]
+                )
+            )
+
+        view_class = cst.ClassDef(
+            name=cst.Name(self.view_name),
+            bases=[cst.Arg(value=cst.parse_expression(f"generic.{self.view_type}"))],
+            body=cst.IndentedBlock(body=body),
         )
-        return updated_node.with_changes(body=[*updated_node.body, view_func])
+        return updated_node.with_changes(body=[*updated_node.body, view_class])
 
 class AddUrlCommand(VisitorBasedCodemodCommand):
     def __init__(self, context: CodemodContext, url_pattern: str):
@@ -103,6 +170,10 @@ class Codemods:
         return os.path.join(base_dir, app_name, "admin.py")
 
     @staticmethod
+    def _get_forms_path(app_name: str, base_dir=".") -> str:
+        return os.path.join(base_dir, app_name, "forms.py")
+
+    @staticmethod
     def _get_views_path(app_name: str, base_dir=".") -> str:
         return os.path.join(base_dir, app_name, "views.py")
 
@@ -138,6 +209,26 @@ class Codemods:
             f.write(modified_tree.code)
 
     @staticmethod
+    def add_form(app_name: str, model_name: str, dry_run=False, base_dir="."):
+        forms_path = Codemods._get_forms_path(app_name, base_dir=base_dir)
+        if not os.path.exists(forms_path):
+            with open(forms_path, "w") as f:
+                f.write("from django import forms\nfrom .models import *\n")
+
+        source = Codemods.get_original_code(forms_path)
+
+        context = CodemodContext()
+        command = AddModelFormCommand(context, model_name)
+        tree = cst.parse_module(source)
+        modified_tree = command.transform_module(tree)
+
+        if dry_run:
+            return modified_tree.code
+
+        with open(forms_path, "w") as f:
+            f.write(modified_tree.code)
+
+    @staticmethod
     def register_model_admin(app_name: str, model_name: str, dry_run=False, base_dir="."):
         admin_path = Codemods._get_admin_path(app_name, base_dir=base_dir)
         source = Codemods.get_original_code(admin_path)
@@ -154,12 +245,12 @@ class Codemods:
             f.write(modified_tree.code)
 
     @staticmethod
-    def add_view(app_name: str, view_name: str, dry_run=False, base_dir="."):
+    def add_view(app_name: str, view_name: str, view_type: str, model: str, form_class: str = None, success_url: str = None, dry_run=False, base_dir="."):
         views_path = Codemods._get_views_path(app_name, base_dir=base_dir)
         source = Codemods.get_original_code(views_path)
 
         context = CodemodContext()
-        command = AddViewCommand(context, view_name)
+        command = AddViewCommand(context, view_name, view_type, model, form_class, success_url)
         tree = cst.parse_module(source)
         modified_tree = command.transform_module(tree)
 
@@ -181,6 +272,10 @@ class Codemods:
     @staticmethod
     def add_url(app_name: str, url_pattern: str, dry_run=False, base_dir="."):
         urls_path = Codemods._get_urls_path(app_name, base_dir=base_dir)
+        if not os.path.exists(urls_path):
+            with open(urls_path, "w") as f:
+                f.write("from django.urls import path\nfrom . import views\n\nurlpatterns = []\n")
+
         source = Codemods.get_original_code(urls_path)
 
         context = CodemodContext()

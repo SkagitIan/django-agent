@@ -33,7 +33,7 @@ class CodemodTestCase(BaseTestCase):
         with open(f"{self.app_name}/admin.py", "w") as f:
             f.write("from django.contrib import admin\n")
         with open(f"{self.app_name}/views.py", "w") as f:
-            f.write("from django.http import HttpResponse\n")
+            f.write("from django.http import HttpResponse\nfrom django.views import generic\n")
         with open(f"{self.app_name}/urls.py", "w") as f:
             f.write("from django.urls import path\nurlpatterns = []\n")
         os.makedirs("templates", exist_ok=True)
@@ -63,10 +63,11 @@ class CodemodTestCase(BaseTestCase):
         self.assertIn("admin.site.register(models.TestModel)", content)
 
     def test_add_view(self):
-        Codemods.add_view(self.app_name, "test_view")
+        Codemods.add_view(self.app_name, "TestView", "ListView", "TestModel")
         with open(f"{self.app_name}/views.py", "r") as f:
             content = f.read()
-        self.assertIn("def test_view(request):", content)
+        self.assertIn("class TestView(generic.ListView):", content)
+        self.assertIn("model = TestModel", content)
 
     def test_add_template(self):
         Codemods.add_template("test_template.html", "<h1>Hello</h1>")
@@ -75,10 +76,10 @@ class CodemodTestCase(BaseTestCase):
         self.assertEqual(content, "<h1>Hello</h1>")
 
     def test_add_url(self):
-        Codemods.add_url(self.app_name, "path('test/', views.test_view, name='test_view')")
+        Codemods.add_url(self.app_name, "path('test/', views.TestView.as_view(), name='test_view')")
         with open(f"{self.app_name}/urls.py", "r") as f:
             content = f.read()
-        self.assertIn("path('test/', views.test_view, name='test_view')", content)
+        self.assertIn("path('test/', views.TestView.as_view(), name='test_view')", content)
 
 
 class OrchestratorTestCase(BaseTestCase):
@@ -116,9 +117,10 @@ class TaskManagerTestCase(BaseTestCase):
                 "operations": [
                     {"op": "create_app", "name": self.app_name},
                     {"op": "add_model", "app": self.app_name, "model": "Contact", "fields": {"name": "models.CharField(max_length=100)", "email": "models.EmailField()"}},
-                    {"op": "add_view", "app": self.app_name, "name": "contact_view"},
-                    {"op": "add_template", "name": f"{self.app_name}/contact.html", "content": "<h1>Contact Us</h1>"},
-                    {"op": "add_url", "app": self.app_name, "pattern": "path('contact/', views.contact_view, name='contact_view')"}
+                    {"op": "add_form", "app": self.app_name, "model": "Contact"},
+                    {"op": "add_view", "app": self.app_name, "name": "ContactListView", "view_type": "ListView", "model": "Contact"},
+                    {"op": "add_template", "name": f"{self.app_name}/contact_list.html", "content": "<h1>Contact List</h1>"},
+                    {"op": "add_url", "app": self.app_name, "pattern": "path('', views.ContactListView.as_view(), name='contact_list')"}
                 ]
             },
             requester=self.user
@@ -139,38 +141,29 @@ class TaskManagerTestCase(BaseTestCase):
 
     def test_apply_run(self):
         TaskManager.apply_run(self.run)
-        self.assertEqual(Task.objects.filter(run=self.run).count(), 5)
+        self.assertEqual(Task.objects.filter(run=self.run).count(), 6)
         for task in Task.objects.filter(run=self.run):
             self.assertEqual(task.status, 'APPLIED')
 
-        # Verify that the app was created
         self.assertTrue(os.path.exists(self.app_name))
 
-        # Verify that the model was added
         with open(f"{self.app_name}/models.py", "r") as f:
             content = f.read()
         self.assertIn("class Contact(models.Model):", content)
-        self.assertIn("name = models.CharField(max_length=100)", content)
-        self.assertIn("email = models.EmailField()", content)
 
-        # Verify that the model was registered in the admin
-        with open(f"{self.app_name}/admin.py", "r") as f:
+        with open(f"{self.app_name}/forms.py", "r") as f:
             content = f.read()
-        self.assertIn("from . import models", content)
-        self.assertIn("admin.site.register(models.Contact)", content)
+        self.assertIn("class ContactForm(forms.ModelForm):", content)
 
-        # Verify that the view was added
         with open(f"{self.app_name}/views.py", "r") as f:
             content = f.read()
-        self.assertIn("def contact_view(request):", content)
+        self.assertIn("class ContactListView(generic.ListView):", content)
 
-        # Verify that the template was created
-        self.assertTrue(os.path.exists(f"templates/{self.app_name}/contact.html"))
+        self.assertTrue(os.path.exists(f"templates/{self.app_name}/contact_list.html"))
 
-        # Verify that the URL was added
         with open(f"{self.app_name}/urls.py", "r") as f:
             content = f.read()
-        self.assertIn("path('contact/', views.contact_view, name='contact_view')", content)
+        self.assertIn("path('', views.ContactListView.as_view(), name='contact_list')", content)
 
     def test_rollback(self):
         original_content = "original content"

@@ -73,10 +73,20 @@ class TaskManager:
             fields = op.get('fields')
             Codemods.add_model(app_name, model_name, fields, base_dir=base_dir)
             Codemods.register_model_admin(app_name, model_name, base_dir=base_dir)
+        elif op.get("op") == 'add_form':
+            Codemods.add_form(
+                app_name=op.get('app'),
+                model_name=op.get('model'),
+                base_dir=base_dir
+            )
         elif op.get("op") == 'add_view':
             Codemods.add_view(
                 app_name=op.get('app'),
                 view_name=op.get('name'),
+                view_type=op.get('view_type'),
+                model=op.get('model'),
+                form_class=op.get('form_class'),
+                success_url=op.get('success_url'),
                 base_dir=base_dir
             )
         elif op.get("op") == 'add_template':
@@ -97,6 +107,8 @@ class TaskManager:
     def get_path_for_op(op: dict, base_dir=".") -> str | None:
         if op.get("op") == "add_model":
             return Codemods._get_models_path(op.get("app"), base_dir=base_dir)
+        elif op.get("op") == "add_form":
+            return Codemods._get_forms_path(op.get("app"), base_dir=base_dir)
         elif op.get("op") == "add_view":
             return Codemods._get_views_path(op.get("app"), base_dir=base_dir)
         elif op.get("op") == "add_template":
@@ -125,12 +137,33 @@ class TaskManager:
                 tofile='after',
             )
             return "".join(diff)
+        elif op.get("op") == "add_form":
+            app_name = op.get("app")
+            model_name = op.get("model")
+
+            original_code = ""
+            if os.path.exists(Codemods._get_forms_path(app_name)):
+                original_code = Codemods.get_original_code(Codemods._get_forms_path(app_name))
+
+            modified_code = Codemods.add_form(app_name, model_name, dry_run=True)
+
+            diff = difflib.unified_diff(
+                original_code.splitlines(keepends=True),
+                modified_code.splitlines(keepends=True),
+                fromfile='before',
+                tofile='after',
+            )
+            return "".join(diff)
         elif op.get("op") == "add_view":
             app_name = op.get("app")
             view_name = op.get("name")
+            view_type = op.get("view_type")
+            model = op.get("model")
+            form_class = op.get("form_class")
+            success_url = op.get("success_url")
 
             original_code = Codemods.get_original_code(Codemods._get_views_path(app_name))
-            modified_code = Codemods.add_view(app_name, view_name, dry_run=True)
+            modified_code = Codemods.add_view(app_name, view_name, view_type, model, form_class, success_url, dry_run=True)
 
             diff = difflib.unified_diff(
                 original_code.splitlines(keepends=True),
