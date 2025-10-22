@@ -163,19 +163,23 @@ class Codemods:
 
     @staticmethod
     def _get_models_path(app_name: str, base_dir=".") -> str:
-        return os.path.join(base_dir, app_name, "models.py")
+        app_path = app_name.replace('.', '/')
+        return os.path.join(base_dir, app_path, "models.py")
 
     @staticmethod
     def _get_admin_path(app_name: str, base_dir=".") -> str:
-        return os.path.join(base_dir, app_name, "admin.py")
+        app_path = app_name.replace('.', '/')
+        return os.path.join(base_dir, app_path, "admin.py")
 
     @staticmethod
     def _get_forms_path(app_name: str, base_dir=".") -> str:
-        return os.path.join(base_dir, app_name, "forms.py")
+        app_path = app_name.replace('.', '/')
+        return os.path.join(base_dir, app_path, "forms.py")
 
     @staticmethod
     def _get_views_path(app_name: str, base_dir=".") -> str:
-        return os.path.join(base_dir, app_name, "views.py")
+        app_path = app_name.replace('.', '/')
+        return os.path.join(base_dir, app_path, "views.py")
 
     @staticmethod
     def _get_template_path(template_name: str, base_dir=".") -> str:
@@ -183,12 +187,11 @@ class Codemods:
 
     @staticmethod
     def _get_urls_path(app_name: str, base_dir=".") -> str:
-        return os.path.join(base_dir, app_name, "urls.py")
+        app_path = app_name.replace('.', '/')
+        return os.path.join(base_dir, app_path, "urls.py")
 
     @staticmethod
     def _get_project_urls_path(base_dir=".") -> str:
-        if getattr(settings, 'TESTING', False):
-            return os.path.join(base_dir, "django_llm", "test_urls.py")
         urlconf_module = settings.ROOT_URLCONF
         return os.path.join(base_dir, urlconf_module.replace(".", "/")) + ".py"
 
@@ -304,3 +307,31 @@ class Codemods:
 
         with open(project_urls_path, "w") as f:
             f.write(modified_tree.code)
+
+    @staticmethod
+    def create_app_structure(app_name: str, base_dir="."):
+        app_path = os.path.join(base_dir, app_name)
+        os.makedirs(app_path, exist_ok=True)
+
+        # Create __init__.py to make it a package
+        with open(os.path.join(app_path, "__init__.py"), "w") as f:
+            pass
+
+        # Create other standard files
+        with open(os.path.join(app_path, "models.py"), "w") as f:
+            f.write("from django.db import models\n")
+
+        with open(os.path.join(app_path, "views.py"), "w") as f:
+            f.write("from django.shortcuts import render\nfrom django.views import generic\n")
+
+        with open(os.path.join(app_path, "admin.py"), "w") as f:
+            f.write("from django.contrib import admin\n")
+
+        with open(os.path.join(app_path, "apps.py"), "w") as f:
+            f.write(
+f"""from django.apps import AppConfig
+class {app_name.capitalize()}Config(AppConfig):
+    default_auto_field = 'django.db.models.BigAutoField'
+    name = '{app_name}'
+"""
+            )

@@ -33,10 +33,15 @@ class DeployAgent:
 
     @staticmethod
     def verify_health():
+        from django.conf import settings
+        health_check_url = getattr(settings, "HEALTH_CHECK_URL", None)
+        if not health_check_url:
+            print("Warning: HEALTH_CHECK_URL not set. Skipping health check.")
+            return
+
         print("Verifying health...")
         try:
-            # We'll use a placeholder URL for now.
-            response = requests.get("http://example.com/health/")
+            response = requests.get(health_check_url)
             if response.status_code == 200:
                 print("Health check successful.")
             else:

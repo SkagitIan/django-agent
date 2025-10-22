@@ -48,9 +48,10 @@ class Orchestrator:
         Analyze the following prompt and generate a plan of safe operations to build a complete CRUD interface.
         Return JSON with a list of operations only.
 
-        Allowed ops: create_app, add_model, add_form, add_view, add_template, add_url.
+        Allowed ops: create_app, add_model, add_form, add_view, add_template, add_url, run_migrations.
 
         - For `add_model`, `fields` should be a dictionary mapping field names to their Django model field types (e.g., "name": "models.CharField(max_length=100)").
+        - After an `add_model` operation, you must add a `run_migrations` operation for the same app.
         - For `add_form`, you must specify the `app` and `model`.
         - For `add_view`, you must specify the `app`, `name` (the view's class name), and `view_type` (e.g., "ListView", "DetailView", "CreateView", "UpdateView", "DeleteView").
         - For `add_template`, you must specify the `name` (e.g., "my_app/my_model_list.html") and the full HTML `content`.
@@ -61,6 +62,7 @@ class Orchestrator:
             "operations": [
                 {"op": "create_app", "name": "blog"},
                 {"op": "add_model", "app": "blog", "model": "Post", "fields": {"title": "models.CharField(max_length=200)", "content": "models.TextField()"}},
+                {"op": "run_migrations", "app": "blog"},
                 {"op": "add_form", "app": "blog", "model": "Post"},
                 {"op": "add_view", "app": "blog", "name": "PostListView", "view_type": "ListView", "model": "Post"},
                 {"op": "add_view", "app": "blog", "name": "PostDetailView", "view_type": "DetailView", "model": "Post"},

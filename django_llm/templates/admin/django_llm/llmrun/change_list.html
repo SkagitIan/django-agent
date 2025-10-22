@@ -1,0 +1,18 @@
+{% extends "admin/change_list.html" %}
+{% load static %}
+
+{% block content %}
+<div id="content-main">
+  <div class="chat-container">
+    <div id="chat-history">
+      <!-- Chat history will be loaded here -->
+    </div>
+    <form id="chat-form" hx-post="{% url 'admin:django_llm_llmrun_changelist' %}" hx-target="#chat-history" hx-swap="beforeend">
+      {% csrf_token %}
+      <input type="text" name="prompt" placeholder="Ask the AI to do something...">
+      <button type="submit">Send</button>
+    </form>
+  </div>
+  {{ block.super }}
+</div>
+{% endblock %}
